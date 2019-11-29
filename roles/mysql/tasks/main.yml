@@ -1,0 +1,41 @@
+---
+- name: Install Mysql package
+  apt:
+    pkg:
+      - mysql-server
+      - mysql-client
+      - mysql-utilities
+      - python-pymysql
+      - python-mysqldb
+      - libmysqlclient-dev
+    state: present
+    install_recommends: yes
+    update_cache: yes
+   #  - MySQL-python
+   #  - libselinux-python
+   #  - libsemanage-python
+
+#  - name: Configure SELinux to start mysql on any port
+  #  seboolean: name=mysql_connect_any state=true persistent=yes
+  #  when: ansible_selinux.status == "enabled"
+
+- name: Fetch debian-sys-maint password
+  shell: cat /etc/mysql/debian.cnf | grep password | head -n1 | cut -d ' ' -f 3
+  register: mysql_admin_passwd
+
+- name: Update root password
+  mysql_user:
+      name: root
+      password: "{{ mysql_db_root_password }}"
+      login_user: debian-sys-maint
+      login_password: "{{ mysql_admin_passwd.stdout }}"
+      priv: "*.*:ALL,GRANT"
+
+- name: Create Mysql configuration file
+  template: src=my.cnf.j2 dest=/etc/mysql/conf.d
+  notify:
+  - restart mysql
+
+- name: Start Mysql Service
+  service: name=mysql state=started enabled=yes
+
